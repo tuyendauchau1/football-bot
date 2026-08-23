@@ -9,27 +9,29 @@ from datetime import datetime, timedelta
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# Đọc danh sách API Key từ file riêng (keys.txt)
+# Đọc danh sách API Key từ file keys.txt
 def tai_danh_sach_key():
     danh_sach = []
     if os.path.exists("keys.txt"):
         try:
             with open("keys.txt", "r", encoding="utf-8") as f:
                 for line in f:
-                    # Lọc bỏ khoảng trắng hoặc dòng trống
                     clean_line = line.strip()
                     if clean_line and not clean_line.startswith("#"):
                         danh_sach.append(clean_line)
         except Exception as e:
             print(f"Lỗi đọc file keys.txt: {e}")
             
-    # Dự phòng nếu file trống hoặc không tồn tại thì dùng key mặc định
     if not danh_sach:
         danh_sach = ["c6d17e7c8e8597ee502a843ac8110518"]
     return danh_sach
 
 DANH_SACH_API_KEY = tai_danh_sach_key()
+
+# Danh sách lưu các chỉ số (index) của những key đã bị hết lượt trong phiên chạy này
+key_da_het_luot = set()
 index_key_hien_tai = 0
+
 REGION = "eu"
 SANH_MUC_TIEU = ["saba", "ibc", "cmd", "bti", "sbo", "1xbet"]
 
@@ -76,40 +78,60 @@ def chuyen_doi_gio_viet_nam(chuoi_thoi_gian):
     except:
         return chuoi_thoi_gian
 
-def lay_api_key_hien_tai():
+def lay_api_key_hoat_dong():
     global index_key_hien_tai
-    return DANH_SACH_API_KEY[index_key_hien_tai]
+    
+    # Kiểm tra xem tất cả các key trong file đã cạn sạch lượt chưa
+    if len(key_da_het_luot) >= len(DANH_SACH_API_KEY):
+        return None # Hết toàn bộ key
+        
+    # Tìm key tiếp theo chưa bị đánh dấu hết lượt
+    so_lan_thu = 0
+    while so_lan_thu < len(DANH_SACH_API_KEY):
+        if index_key_hien_tai not in key_da_het_luot:
+            return DANH_SACH_API_KEY[index_key_hien_tai]
+        
+        # Nếu key này đã đánh dấu hết lượt, tự động chuyển sang index tiếp theo
+        index_key_hien_tai = (index_key_hien_tai + 1) % len(DANH_SACH_API_KEY)
+        so_lan_thu += 1
+        
+    return None
 
-def chuyen_sang_api_key_tiep_theo():
+def danh_dau_key_hiet_luot():
     global index_key_hien_tai
+    key_da_het_luot.add(index_key_hien_tai)
+    print(f"⚠️ Key số {index_key_hien_tai + 1} đã cạn lượt, đưa vào danh sách chờ hồi phục.")
+    # Chuyển sang index tiếp theo cho lần lấy sau
     index_key_hien_tai = (index_key_hien_tai + 1) % len(DANH_SACH_API_KEY)
-    print(f"🔄 Đã tự động đổi sang API Key thứ {index_key_hien_tai + 1} từ file keys.txt")
 
 def xu_ly_quet_keo_chau_a():
     gio_bat_dau_vn = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M:%S - %d/%m/%Y")
-    gui_tin_nhan_telegram(f"🤖 *Bot điểm danh:* Đã thức dậy và bắt đầu tiến hành quét 15 giải đấu (Dùng {len(DANH_SACH_API_KEY)} keys từ file) lúc `{gio_bat_dau_vn}`.")
+    gui_tin_nhan_telegram(f"🤖 *Bot điểm danh:* Đã thức dậy và tiến hành quét với tổng số `{len(DANH_SACH_API_KEY)}` keys từ file lúc `{gio_bat_dau_vn}`.")
     
-    print(f"[{gio_bat_dau_vn}] Bắt đầu quét Kèo Châu Á với {len(DANH_SACH_API_KEY)} API Key tải từ file keys.txt...")
+    print(f"[{gio_bat_dau_vn}] Bắt đầu quá trình quét Kèo Châu Á...")
     so_keo_tim_duoc = 0
 
     i = 0
     while i < len(DANH_SACH_GIAI_TAM_DIEM):
         sport_key = DANH_SACH_GIAI_TAM_DIEM[i]
-        api_key_dang_dung = lay_api_key_hien_tai()
         
+        # Lấy key đang hoạt động
+        api_key_dang_dung = lay_api_key_hoat_dong()
+        
+        if not api_key_dang_dung:
+            # Nếu tất cả các key đều đã cạn sạch lượt trong phiên này
+            gui_tin_nhan_telegram("🚨 *Cảnh báo nghiêm trọng:* Toàn bộ API Key trong file `keys.txt` đều đã cạn sạch lượt gọi trong ngày! Bot tạm dừng.")
+            print("❌ Đã cạn sạch toàn bộ API Key khả dụng.")
+            break
+            
         url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/?apiKey={api_key_dang_dung}&regions={REGION}&markets=spreads"
         try:
             response = requests.get(url, timeout=5)
             
-            # Nếu key hiện tại hết lượt (429) hoặc lỗi (401)
+            # Nếu phát hiện key hết lượt (429) hoặc lỗi xác thực (401)
             if response.status_code == 429 or response.status_code == 401:
-                print(f"⚠️ Key số {index_key_hien_tai + 1} đã hết lượt ở giải {sport_key}!")
-                chuyen_sang_api_key_tiep_theo()
-                
-                if index_key_hien_tai == 0:
-                    gui_tin_nhan_telegram("⚠️ *Cảnh báo:* Tất cả các API Key trong file keys.txt đều đã chạm giới hạn lượt gọi!")
-                
-                # Quét lại chính giải đấu này ngay lập tức với key mới
+                danh_dau_key_hiet_luot()
+                # QUÉT LẠI ngay chính giải đấu hiện tại bằng chiếc Key sống tiếp theo
                 continue
                 
             if response.status_code != 200:
@@ -193,7 +215,7 @@ def xu_ly_quet_keo_chau_a():
         i += 1
 
     gio_ket_thuc_vn = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M:%S")
-    bao_cao_tong_ket = f"✅ *Đã quét xong!*\n⏰ Hoàn tất lúc: `{gio_ket_thuc_vn}`\n🔍 Kết quả: Tìm thấy *{so_keo_tim_duoc}* kèo Surebet. (Đọc key từ file `keys.txt` thành công!)"
+    bao_cao_tong_ket = f"✅ *Đã quét xong!*\n⏰ Hoàn tất lúc: `{gio_ket_thuc_vn}`\n🔍 Kết quả: Tìm thấy *{so_keo_tim_duoc}* kèo Surebet."
     gui_tin_nhan_telegram(bao_cao_tong_ket)
 
 print("BOT ĐÃ KHỞI ĐỘNG TRÊN GITHUB ACTIONS...")
