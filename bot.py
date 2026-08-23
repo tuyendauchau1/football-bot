@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timedelta
 
 # ==========================================
-# CẤU HÌNH TỪ BIẾN MÔI TRƯỜNG RENDER/GITHUB
+# CẤU HÌNH TỪ BIẾN MÔI TRƯỜNG GITHUB
 # ==========================================
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
@@ -69,9 +69,13 @@ def chuyen_sang_api_key_tiep_theo():
     print(f"🔄 Đã tự động đổi sang API Key thứ {index_key_hien_tai + 1}")
 
 def xu_ly_quet_keo_chau_a():
-    gio_hien_tai_vn = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M:%S - %d/%m/%Y")
+    gio_bat_dau_vn = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M:%S - %d/%m/%Y")
+    
+    # 1. GỬI TIN NHẮN ĐIỂM DANH KHI BẮT ĐẦU CHẠY
+    gui_tin_nhan_telegram(f"🤖 *Bot điểm danh:* Đã thức dậy và bắt đầu tiến hành quét 15 giải đấu lúc `{gio_bat_dau_vn}`.")
+    
     api_key_dang_dung = lay_api_key_hien_tai()
-    print(f"[{gio_hien_tai_vn}] Đang quét Kèo Châu Á bằng Key số {index_key_hien_tai + 1}...")
+    print(f"[{gio_bat_dau_vn}] Đang quét Kèo Châu Á bằng Key số {index_key_hien_tai + 1}...")
     
     so_keo_tim_duoc = 0
 
@@ -160,10 +164,10 @@ def xu_ly_quet_keo_chau_a():
                         except:
                             continue
 
-    # Báo cáo tổng kết phiên quét để bạn biết bot vẫn đang hoạt động bình thường
-    bao_cao_trang_thai = f"🟢 *Bot Status Report*\n⏰ Thời điểm quét: {gio_hien_tai_vn}\n📊 Đã kiểm tra 15 giải tâm điểm.\n🔍 Kết quả: Tìm thấy {so_keo_tim_duoc} kèo Surebet."
-    gui_tin_nhan_telegram(bao_cao_trang_thai)
+    # 2. GỬI TIN NHẮN TỔNG KẾT KHI KẾT THÚC
+    gio_ket_thuc_vn = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M:%S")
+    bao_cao_tong_ket = f"✅ *Đã quét xong!*\n⏰ Hoàn tất lúc: `{gio_ket_thuc_vn}`\n🔍 Kết quả: Tìm thấy *{so_keo_tim_duoc}* kèo Surebet trong phiên này. Bot hoạt động bình thường!"
+    gui_tin_nhan_telegram(bao_cao_tong_ket)
 
 print("BOT ĐÃ KHỞI ĐỘNG TRÊN GITHUB ACTIONS...")
-# Chạy một lần duy nhất mỗi khi GitHub Action kích hoạt lịch trình
 xu_ly_quet_keo_chau_a()
