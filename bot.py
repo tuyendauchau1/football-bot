@@ -4,12 +4,11 @@ import os
 from datetime import datetime, timedelta
 
 # ==========================================
-# CẤU HÌNH TỪ BIẾN MÔI TRƯỜNG RENDER
+# CẤU HÌNH TỪ BIẾN MÔI TRƯỜNG RENDER/GITHUB
 # ==========================================
-TOKEN = os.environ.get("8760579959:AAFmG-IlI-uOkh_GIDkvGDox4mRP8ce6djg")
-CHAT_ID = os.environ.get("5592664012")
+TOKEN = os.environ.get("TELEGRAM_TOKEN")
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# Đọc danh sách API key cách nhau bởi dấu phẩy từ Render
 api_keys_str = os.environ.get("API_KEYS", "c6d17e7c8e8597ee502a843ac8110518")
 DANH_SACH_API_KEY = [k.strip() for k in api_keys_str.split(",") if k.strip()]
 
@@ -70,10 +69,12 @@ def chuyen_sang_api_key_tiep_theo():
     print(f"🔄 Đã tự động đổi sang API Key thứ {index_key_hien_tai + 1}")
 
 def xu_ly_quet_keo_chau_a():
-    gio_hien_tai = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M:%S")
+    gio_hien_tai_vn = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M:%S - %d/%m/%Y")
     api_key_dang_dung = lay_api_key_hien_tai()
-    print(f"[{gio_hien_tai}] Đang quét Kèo Châu Á bằng Key số {index_key_hien_tai + 1}...")
+    print(f"[{gio_hien_tai_vn}] Đang quét Kèo Châu Á bằng Key số {index_key_hien_tai + 1}...")
     
+    so_keo_tim_duoc = 0
+
     for sport_key in DANH_SACH_GIAI_TAM_DIEM:
         url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/?apiKey={api_key_dang_dung}&regions={REGION}&markets=spreads"
         try:
@@ -130,7 +131,8 @@ def xu_ly_quet_keo_chau_a():
                                 tong_von = 2000000
                                 
                                 if tong_nghich_dao < 1:
-                                    tien_a_goc = tong_von * (ngh_dao_a / tong_nghich_dao)
+                                    so_keo_tim_duoc += 1
+                                    tien_a_goc = tong_von * (nghich_dao_a / tong_nghich_dao)
                                     tien_b_goc = tong_von * (nghich_dao_b / tong_nghich_dao)
                                     
                                     tien_a_tron = lam_tron_tien(tien_a_goc)
@@ -158,15 +160,10 @@ def xu_ly_quet_keo_chau_a():
                         except:
                             continue
 
-print("BOT ĐÃ KHỞI ĐỘNG TRÊN RENDER CLOUD...")
-while True:
-    bay_gio_vn = datetime.utcnow() + timedelta(hours=7)
-    gio_hien_tai = bay_gio_vn.hour
-    
-    # Giữ khung giờ vàng (22h đến 3h sáng)
-    if gio_hien_tai >= 22 or gio_hien_tai < 3:
-        xu_ly_quet_keo_chau_a()
-        time.sleep(180)
-    else:
-        print(f"[{bay_gio_vn.strftime('%H:%M:%S')}] Ngoài khung giờ vàng, bot đang ngủ...")
-        time.sleep(900)
+    # Báo cáo tổng kết phiên quét để bạn biết bot vẫn đang hoạt động bình thường
+    bao_cao_trang_thai = f"🟢 *Bot Status Report*\n⏰ Thời điểm quét: {gio_hien_tai_vn}\n📊 Đã kiểm tra 15 giải tâm điểm.\n🔍 Kết quả: Tìm thấy {so_keo_tim_duoc} kèo Surebet."
+    gui_tin_nhan_telegram(bao_cao_trang_thai)
+
+print("BOT ĐÃ KHỞI ĐỘNG TRÊN GITHUB ACTIONS...")
+# Chạy một lần duy nhất mỗi khi GitHub Action kích hoạt lịch trình
+xu_ly_quet_keo_chau_a()
