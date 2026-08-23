@@ -2,8 +2,8 @@ name: Run Football Bot
 
 on:
   schedule:
-    # Chạy tự động mỗi ngày từ 22h00 đến 3h00 sáng giờ Việt Nam (tương ứng 15h - 20h UTC)
-    - cron: '0 15-20 * * *'
+    # Kích hoạt bot chạy mỗi giờ từ 14h đến 20h UTC (từ 21h00 đến 3h00 sáng giờ VN)
+    - cron: '*/5 14-20 * * *'
   workflow_dispatch:
 
 jobs:
