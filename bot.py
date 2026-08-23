@@ -70,31 +70,43 @@ def chuyen_sang_api_key_tiep_theo():
 
 def xu_ly_quet_keo_chau_a():
     gio_bat_dau_vn = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M:%S - %d/%m/%Y")
-    
-    # 1. GỬI TIN NHẮN ĐIỂM DANH KHI BẮT ĐẦU CHẠY
     gui_tin_nhan_telegram(f"🤖 *Bot điểm danh:* Đã thức dậy và bắt đầu tiến hành quét 15 giải đấu lúc `{gio_bat_dau_vn}`.")
     
-    api_key_dang_dung = lay_api_key_hien_tai()
-    print(f"[{gio_bat_dau_vn}] Đang quét Kèo Châu Á bằng Key số {index_key_hien_tai + 1}...")
-    
+    print(f"[{gio_bat_dau_vn}] Bắt đầu quét Kèo Châu Á với {len(DANH_SACH_API_KEY)} API Key có sẵn...")
     so_keo_tim_duoc = 0
 
-    for sport_key in DANH_SACH_GIAI_TAM_DIEM:
+    # Duyệt qua từng giải đấu trong danh sách
+    i = 0
+    while i < len(DANH_SACH_GIAI_TAM_DIEM):
+        sport_key = DANH_SACH_GIAI_TAM_DIEM[i]
+        api_key_dang_dung = lay_api_key_hien_tai()
+        
         url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/?apiKey={api_key_dang_dung}&regions={REGION}&markets=spreads"
         try:
             response = requests.get(url, timeout=5)
             
+            # Nếu key hiện tại bị hết lượt (429) hoặc lỗi xác thực (401)
             if response.status_code == 429 or response.status_code == 401:
+                print(f"⚠️ Key số {index_key_hien_tai + 1} đã hết lượt ở giải {sport_key}!")
                 chuyen_sang_api_key_tiep_theo()
-                return
+                
+                # Cảnh báo qua Telegram để bạn biết nếu tất cả các key đều đã cạn
+                if index_key_hien_tai == 0:
+                    gui_tin_nhan_telegram("⚠️ *Cảnh báo:* Tất cả các API Key đều đã chạm giới hạn lượt gọi!")
+                
+                # KHÔNG tăng biến i để vòng lặp QUÉT LẠI chính giải đấu vừa bị lỗi này bằng key mới ngay lập tức
+                continue
                 
             if response.status_code != 200:
+                i += 1
                 continue
                 
             data = response.json()
         except:
+            i += 1
             continue
 
+        # Xử lý dữ liệu trận đấu nếu gọi thành công
         for match in data:
             tran_dau = f"{match.get('home_team')} vs {match.get('away_team')}"
             gio_vn = chuyen_doi_gio_viet_nam(match.get('commence_time', ''))
@@ -107,10 +119,10 @@ def xu_ly_quet_keo_chau_a():
                     sanh_hop_le.append(bm)
             
             if len(sanh_hop_le) >= 2:
-                for i in range(len(sanh_hop_le)):
-                    for j in range(i + 1, len(sanh_hop_le)):
-                        sanh_a = sanh_hop_le[i]
-                        sanh_b = sanh_hop_le[j]
+                for x in range(len(sanh_hop_le)):
+                    for y in range(x + 1, len(sanh_hop_le)):
+                        sanh_a = sanh_hop_le[x]
+                        sanh_b = sanh_hop_le[y]
                         
                         try:
                             markets_a = sanh_a.get('markets', [])
@@ -163,8 +175,11 @@ def xu_ly_quet_keo_chau_a():
                                     print(f"🎯 ĐÃ BẮN KÈO: {tran_dau}")
                         except:
                             continue
+        
+        # Quét xong giải hiện tại thành công thì chuyển sang giải tiếp theo
+        i += 1
 
-    # 2. GỬI TIN NHẮN TỔNG KẾT KHI KẾT THÚC
+    # Tổng kết phiên quét
     gio_ket_thuc_vn = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M:%S")
     bao_cao_tong_ket = f"✅ *Đã quét xong!*\n⏰ Hoàn tất lúc: `{gio_ket_thuc_vn}`\n🔍 Kết quả: Tìm thấy *{so_keo_tim_duoc}* kèo Surebet trong phiên này. Bot hoạt động bình thường!"
     gui_tin_nhan_telegram(bao_cao_tong_ket)
